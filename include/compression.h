@@ -11,16 +11,15 @@ typedef enum {
 } CompressionResult;
 
 CompressionResult compression_compress_file(
-    const char *input_path,
-    const char *output_path,
+    const char  *input_path,
+    const char  *output_path,
     StatsReport *stats
 );
 
 CompressionResult compression_decompress_file(
-    const char *input_path,
-    const char *output_path,
+    const char  *input_path,
+    const char  *output_path,
     StatsReport *stats
 );
 
-#endif
-
+#endif /* COMPRESSION_H */
