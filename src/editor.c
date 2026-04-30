@@ -40,14 +40,14 @@ int editor_load_text(TextEditor *editor, const char *text) {
     
     strcpy(editor->buffer, text);
     editor->length = new_len;
-    editor->cursor = new_len; // Cursor al final
+    editor->cursor = new_len; // Coloca el cursor al final del texto cargado
     return 0;
 }
 
 int editor_insert_char(TextEditor *editor, char value) {
     if (!editor || !editor->buffer) return -1;
 
-    // Redimensionar si es necesario
+    // Verificar si necesitamos más espacio
     if (editor->length + 1 >= editor->capacity) {
         size_t new_cap = editor->capacity * 2;
         char *new_buf = realloc(editor->buffer, new_cap);
@@ -56,7 +56,7 @@ int editor_insert_char(TextEditor *editor, char value) {
         editor->capacity = new_cap;
     }
 
-    // Desplazar texto a la derecha para insertar
+    // Desplazar el texto a la derecha para hacer espacio al nuevo carácter
     memmove(&editor->buffer[editor->cursor + 1], 
             &editor->buffer[editor->cursor], 
             editor->length - editor->cursor + 1);
@@ -69,9 +69,10 @@ int editor_insert_char(TextEditor *editor, char value) {
 }
 
 int editor_delete_char(TextEditor *editor) {
+    // Comportamiento de Backspace: borra el carácter a la izquierda del cursor
     if (!editor || editor->cursor == 0) return -1;
 
-    // Desplazar texto a la izquierda para borrar (comportamiento Backspace)
+    // Desplazar el texto a la izquierda para cubrir el carácter borrado
     memmove(&editor->buffer[editor->cursor - 1], 
             &editor->buffer[editor->cursor], 
             editor->length - editor->cursor + 1);
