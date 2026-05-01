@@ -105,7 +105,7 @@ int tui_run(AppState *state) {
             case KEY_F(4): // Comprimir
                 prompt_input("Archivo a comprimir: ", filepath, sizeof(filepath) - 1);
                 if (strlen(filepath) > 0) {
-                    char outpath[256];
+                    char outpath[sizeof(filepath) + 4];
                     snprintf(outpath, sizeof(outpath), "%s.zst", filepath);
                     CompressionResult res = compression_compress_file(filepath, outpath, &state->last_stats);
                     if (res == COMPRESSION_OK) show_message("Archivo comprimido.");
@@ -116,7 +116,7 @@ int tui_run(AppState *state) {
             case KEY_F(5): // Descomprimir
                 prompt_input("Archivo a descomprimir: ", filepath, sizeof(filepath) - 1);
                 if (strlen(filepath) > 0) {
-                    char outpath[256];
+                    char outpath[sizeof(filepath) + 4];
                     snprintf(outpath, sizeof(outpath), "%s.out", filepath);
                     CompressionResult res = compression_decompress_file(filepath, outpath, &state->last_stats);
                     if (res == COMPRESSION_OK) show_message("Archivo descomprimido.");
@@ -152,8 +152,16 @@ int tui_run(AppState *state) {
         }
     }
 
-    if (state->text_buffer) free(state->text_buffer);
-    state->text_buffer = strdup(editor.buffer);
+    char *saved_buffer = malloc(editor.length + 1);
+    if (saved_buffer == NULL) {
+        editor_destroy(&editor);
+        endwin();
+        return -1;
+    }
+    memcpy(saved_buffer, editor.buffer, editor.length + 1);
+
+    free(state->text_buffer);
+    state->text_buffer = saved_buffer;
     state->text_length = editor.length;
 
     editor_destroy(&editor);

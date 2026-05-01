@@ -10,7 +10,7 @@ OBJ := $(SRC:src/%.c=$(BUILD_DIR)/%.o)
 
 .PHONY: build build-with-deps run test valgrind clean
 
-build: $(TARGET)
+build: $(OBJ)
 
 $(TARGET): $(OBJ) | $(BUILD_DIR)/.dir
 	$(CC) $(CFLAGS) $^ -o $@ $(LDLIBS)
@@ -25,13 +25,13 @@ $(BUILD_DIR)/.dir:
 build-with-deps: LDLIBS = $(DEPS_LDLIBS)
 build-with-deps: clean $(TARGET)
 
-run: build
+run: build-with-deps
 	./$(TARGET)
 
 test:
 	@echo "No hay pruebas implementadas todavia."
 
-valgrind: build
+valgrind: build-with-deps
 	valgrind --leak-check=full --show-leak-kinds=all ./$(TARGET)
 
 clean:
