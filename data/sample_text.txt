@@ -1,0 +1,6 @@
+Este archivo sirve como entrada de ejemplo para probar compresion y descompresion.
+Incluye lineas repetidas para que Zstd tenga contenido aprovechable.
+Linea repetida para la muestra de compresion.
+Linea repetida para la muestra de compresion.
+Linea repetida para la muestra de compresion.
+Una linea final sin caracteres especiales de terminal.

@@ -12,7 +12,7 @@ void app_state_init(AppState *state)
     state->text_buffer = NULL;
     state->text_length = 0;
     state->current_path[0] = '\0';
-    stats_report_init(&state->last_stats);
+    stats_init(&state->last_stats);
 }
 
 void app_state_destroy(AppState *state)
@@ -26,4 +26,3 @@ void app_state_destroy(AppState *state)
     state->text_length = 0;
     memset(state->current_path, 0, sizeof(state->current_path));
 }
-

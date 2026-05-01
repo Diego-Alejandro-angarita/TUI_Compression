@@ -117,10 +117,10 @@ static void test_roundtrip_empty_line(void)
     if (ok) T_PASS(); else T_FAIL("fallo con linea vacia");
 }
 
-/* 3 — stats: bytes_original y bytes_compressed se rellenan */
+/* 3 — stats: volumenes de datos se rellenan */
 static void test_stats_bytes(void)
 {
-    T_BEGIN("stats: bytes_original y bytes_compressed > 0");
+    T_BEGIN("stats: bytes_original, bytes_compressed y bytes_written > 0");
 
     write_file(F_ORIG, "Contenido para medir estadisticas.\n");
 
@@ -129,6 +129,11 @@ static void test_stats_bytes(void)
 
     if (stats.bytes_original == 0)   { T_FAIL("bytes_original == 0"); return; }
     if (stats.bytes_compressed == 0) { T_FAIL("bytes_compressed == 0"); return; }
+    if (stats.bytes_written == 0)    { T_FAIL("bytes_written == 0"); return; }
+    if (stats.bytes_written != stats.bytes_compressed) {
+        T_FAIL("bytes_written != bytes_compressed en compresion");
+        return;
+    }
     T_PASS();
 }
 

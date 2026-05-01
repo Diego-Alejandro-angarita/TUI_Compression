@@ -36,14 +36,13 @@
 
 #include "compression.h"
 
+#include <errno.h>
+#include <fcntl.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdint.h>
-#include <fcntl.h>
 #include <unistd.h>
-#include <sys/resource.h>
-#include <time.h>
 
 #include <zstd.h>
 
@@ -72,6 +71,31 @@ static void wbuf_init(WBuf *w, int fd)
     w->total_written = 0;
 }
 
+static int wbuf_write_full(WBuf *w, const uint8_t *src, size_t len)
+{
+    size_t written = 0;
+
+    while (written < len) {
+        ssize_t n = write(w->fd, src + written, len - written);
+        w->write_calls++;
+
+        if (n < 0) {
+            if (errno == EINTR) {
+                continue;
+            }
+            return -1;
+        }
+        if (n == 0) {
+            return -1;
+        }
+
+        written += (size_t)n;
+        w->total_written += (uint64_t)n;
+    }
+
+    return 0;
+}
+
 /* Devuelve 0 en éxito, -1 en error de write(). */
 static int wbuf_push(WBuf *w, const uint8_t *src, size_t len)
 {
@@ -84,10 +108,9 @@ static int wbuf_push(WBuf *w, const uint8_t *src, size_t len)
         len     -= copy;
 
         if (w->used == OUTPUT_BUF) {
-            ssize_t n = write(w->fd, w->data, OUTPUT_BUF);
-            w->write_calls++;
-            if (n < 0) return -1;
-            w->total_written += (size_t)n;
+            if (wbuf_write_full(w, w->data, OUTPUT_BUF) != 0) {
+                return -1;
+            }
             w->used = 0;
         }
     }
@@ -98,24 +121,11 @@ static int wbuf_push(WBuf *w, const uint8_t *src, size_t len)
 static int wbuf_flush(WBuf *w)
 {
     if (w->used == 0) return 0;
-    ssize_t n = write(w->fd, w->data, w->used);
-    w->write_calls++;
-    if (n < 0) return -1;
-    w->total_written += (size_t)n;
+    if (wbuf_write_full(w, w->data, w->used) != 0) {
+        return -1;
+    }
     w->used = 0;
     return 0;
-}
-
-/* ── Ayudantes de tiempo ────────────────────────────────────────────────── */
-
-static double ts_ms(const struct timespec *t)
-{
-    return (double)t->tv_sec * 1000.0 + (double)t->tv_nsec / 1e6;
-}
-
-static double tv_ms(const struct timeval *t)
-{
-    return (double)t->tv_sec * 1000.0 + (double)t->tv_usec / 1e3;
 }
 
 /* ── compression_compress_file ──────────────────────────────────────────── */
@@ -128,11 +138,8 @@ CompressionResult compression_compress_file(
     if (!input_path || !output_path)
         return COMPRESSION_ERR_INPUT;
 
-    /* Marcadores de tiempo */
-    struct timespec wall0, wall1;
-    struct rusage   ru0, ru1;
-    clock_gettime(CLOCK_MONOTONIC, &wall0);
-    getrusage(RUSAGE_SELF, &ru0);
+    StatsTimer timer;
+    stats_timer_start(&timer);
 
     /* Abrir fuente */
     FILE *in = fopen(input_path, "rb");
@@ -197,16 +204,12 @@ done:
     fclose(in);
     close(out_fd);
 
-    clock_gettime(CLOCK_MONOTONIC, &wall1);
-    getrusage(RUSAGE_SELF, &ru1);
-
     if (stats && result == COMPRESSION_OK) {
-        stats->bytes_original   += bytes_orig;
-        stats->bytes_compressed += wb.total_written;
-        stats->write_calls      += wb.write_calls;
-        stats->wall_clock_ms    += ts_ms(&wall1) - ts_ms(&wall0);
-        stats->cpu_user_ms      += tv_ms(&ru1.ru_utime) - tv_ms(&ru0.ru_utime);
-        stats->cpu_sys_ms       += tv_ms(&ru1.ru_stime) - tv_ms(&ru0.ru_stime);
+        stats_add_original_bytes(stats, bytes_orig);
+        stats_add_compressed_bytes(stats, wb.total_written);
+        stats_add_written_bytes(stats, wb.total_written);
+        stats_add_write_calls(stats, wb.write_calls);
+        stats_timer_stop(&timer, stats);
     }
 
     return result;
@@ -222,10 +225,8 @@ CompressionResult compression_decompress_file(
     if (!input_path || !output_path)
         return COMPRESSION_ERR_INPUT;
 
-    struct timespec wall0, wall1;
-    struct rusage   ru0, ru1;
-    clock_gettime(CLOCK_MONOTONIC, &wall0);
-    getrusage(RUSAGE_SELF, &ru0);
+    StatsTimer timer;
+    stats_timer_start(&timer);
 
     FILE *in = fopen(input_path, "rb");
     if (!in) return COMPRESSION_ERR_INPUT;
@@ -315,15 +316,11 @@ done_d:
     fclose(in);
     close(out_fd);
 
-    clock_gettime(CLOCK_MONOTONIC, &wall1);
-    getrusage(RUSAGE_SELF, &ru1);
-
     if (stats && result == COMPRESSION_OK) {
-        stats->bytes_original   += bytes_orig;
-        stats->write_calls      += wb.write_calls;
-        stats->wall_clock_ms    += ts_ms(&wall1) - ts_ms(&wall0);
-        stats->cpu_user_ms      += tv_ms(&ru1.ru_utime) - tv_ms(&ru0.ru_utime);
-        stats->cpu_sys_ms       += tv_ms(&ru1.ru_stime) - tv_ms(&ru0.ru_stime);
+        stats_add_original_bytes(stats, bytes_orig);
+        stats_add_written_bytes(stats, wb.total_written);
+        stats_add_write_calls(stats, wb.write_calls);
+        stats_timer_stop(&timer, stats);
     }
 
     return result;
