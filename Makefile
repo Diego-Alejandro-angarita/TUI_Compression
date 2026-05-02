@@ -1,19 +1,27 @@
-CC := gcc
-CFLAGS := -Wall -Wextra -Wpedantic -std=c11 -Iinclude
-LDLIBS ?=
-DEPS_LDLIBS := -lncurses -lzstd
+# Makefile
+CC      := gcc
+CFLAGS  := -Wall -Wextra -Wpedantic -std=c11 -Iinclude $(CPPFLAGS)
+LDLIBS  ?=
+DEPS_LDLIBS := -lncurses -L/opt/homebrew/Cellar/zstd/1.5.7_1/lib -lzstd
+
+# Detectar readline
+READLINE_CHECK := $(shell pkg-config --libs readline 2>/dev/null)
+ifneq ($(READLINE_CHECK),)
+    CFLAGS      += -DHAVE_READLINE
+    DEPS_LDLIBS += $(shell pkg-config --libs readline)
+endif
 
 BUILD_DIR := build
-TARGET := $(BUILD_DIR)/zstd_tui
-SRC := $(wildcard src/*.c)
-OBJ := $(SRC:src/%.c=$(BUILD_DIR)/%.o)
+TARGET    := $(BUILD_DIR)/zstd_tui
+SRC       := $(wildcard src/*.c)
+OBJ       := $(SRC:src/%.c=$(BUILD_DIR)/%.o)
 
 .PHONY: build build-with-deps run test valgrind clean
 
 build: $(OBJ)
 
 $(TARGET): $(OBJ) | $(BUILD_DIR)/.dir
-	$(CC) $(CFLAGS) $^ -o $@ $(LDLIBS)
+	$(CC) $(CFLAGS) $^ -o $@ $(LDFLAGS) $(LDLIBS)
 
 $(BUILD_DIR)/%.o: src/%.c | $(BUILD_DIR)/.dir
 	$(CC) $(CFLAGS) -c $< -o $@
