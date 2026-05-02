@@ -1,0 +1,14 @@
+# Build
+build/
+*.o
+*.out
+
+# Binarios
+tui
+zstd_tui
+
+# Datos generados
+data/
+
+# VSCode
+.vscode/
