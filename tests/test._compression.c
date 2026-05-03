@@ -254,6 +254,47 @@ static void test_roundtrip_no_trailing_newline(void)
     if (ok) T_PASS(); else T_FAIL("contenido distinto para archivo sin newline");
 }
 
+
+/* 13 — decompress también reporta bytes_compressed en stats */
+static void test_decompress_reports_bytes_compressed(void)
+{
+    T_BEGIN("decompress: stats->bytes_compressed se reporta");
+
+    write_file(F_ORIG, "Linea de prueba para stats de descompresion.\n");
+
+    StatsReport stats; stats_init(&stats);
+    compression_compress_file(F_ORIG, F_COMP, NULL);   /* stats separado */
+
+    StatsReport dstats; stats_init(&dstats);
+    compression_decompress_file(F_COMP, F_DECOMP, &dstats);
+
+    if (dstats.bytes_compressed == 0)
+        T_FAIL("bytes_compressed == 0 en decompress");
+    else
+        T_PASS();
+}
+
+/* 14 — los tiempos en compress y decompress son coherentes (>= 0) */
+static void test_timing_coherence(void)
+{
+    T_BEGIN("tiempos cpu_user_ms y cpu_sys_ms >= 0 en ambas ops");
+
+    write_file(F_ORIG, "Contenido para medir coherencia de tiempos.\n");
+
+    StatsReport cs; stats_init(&cs);
+    StatsReport ds; stats_init(&ds);
+
+    compression_compress_file(F_ORIG, F_COMP, &cs);
+    compression_decompress_file(F_COMP, F_DECOMP, &ds);
+
+    if (cs.cpu_user_ms < 0 || cs.cpu_sys_ms < 0 ||
+        ds.cpu_user_ms < 0 || ds.cpu_sys_ms < 0 ||
+        cs.wall_clock_ms < 0 || ds.wall_clock_ms < 0)
+        T_FAIL("algun tiempo es negativo");
+    else
+        T_PASS();
+}
+
 /* ── Limpieza ───────────────────────────────────────────────────────────── */
 
 static void cleanup(void)
@@ -281,6 +322,8 @@ int main(void)
     test_bad_output_path();
     test_roundtrip_null_stats();
     test_roundtrip_no_trailing_newline();
+    test_decompress_reports_bytes_compressed();
+    test_timing_coherence();
 
     cleanup();
 

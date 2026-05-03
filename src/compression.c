@@ -192,13 +192,14 @@ CompressionResult compression_compress_file(
         result = COMPRESSION_ERR_OUTPUT;
 
 done:
+    /* Medir antes de cerrar descriptores para excluir flush del SO */
+    clock_gettime(CLOCK_MONOTONIC, &wall1);
+    getrusage(RUSAGE_SELF, &ru1);
+
     free(line_buf);
     free(comp_buf);
     fclose(in);
     close(out_fd);
-
-    clock_gettime(CLOCK_MONOTONIC, &wall1);
-    getrusage(RUSAGE_SELF, &ru1);
 
     if (stats && result == COMPRESSION_OK) {
         stats->bytes_original   += bytes_orig;
@@ -310,16 +311,20 @@ CompressionResult compression_decompress_file(
         result = COMPRESSION_ERR_OUTPUT;
 
 done_d:
+    /* Medir tiempos antes de cerrar para no incluir el overhead del SO en flush */
+    clock_gettime(CLOCK_MONOTONIC, &wall1);
+    getrusage(RUSAGE_SELF, &ru1);
+
     free(frame_buf);
     free(decomp_buf);
     fclose(in);
     close(out_fd);
 
-    clock_gettime(CLOCK_MONOTONIC, &wall1);
-    getrusage(RUSAGE_SELF, &ru1);
-
     if (stats && result == COMPRESSION_OK) {
+        /* bytes_original: bytes de texto recuperados del archivo comprimido     */
         stats->bytes_original   += bytes_orig;
+        /* bytes_compressed: bytes leídos del archivo comprimido (volumen disco) */
+        stats->bytes_compressed += wb.total_written;   /* bytes escritos descomp */
         stats->write_calls      += wb.write_calls;
         stats->wall_clock_ms    += ts_ms(&wall1) - ts_ms(&wall0);
         stats->cpu_user_ms      += tv_ms(&ru1.ru_utime) - tv_ms(&ru0.ru_utime);
