@@ -3,6 +3,7 @@
 #include "editor.h"
 #include "file_io.h"
 #include "compression.h"
+#include <inttypes.h>
 #include <ncurses.h>
 #include <stdlib.h>
 #include <string.h>
@@ -121,8 +122,12 @@ int tui_run(AppState *state)
                     CompressionResult res =
                         compression_compress_file(filepath, outpath, &state->last_stats);
 
-                    if (res == COMPRESSION_OK) show_message("Compresion exitosa");
-                    else show_message("Error de compresion");
+                    if (res == COMPRESSION_OK) {
+                        stats_finalize(&state->last_stats);
+                        show_message("Compresion exitosa");
+                    } else {
+                        show_message("Error de compresion");
+                    }
                 }
                 break;
             }
@@ -137,8 +142,12 @@ int tui_run(AppState *state)
                     CompressionResult res =
                         compression_decompress_file(filepath, outpath, &state->last_stats);
 
-                    if (res == COMPRESSION_OK) show_message("Descompresion exitosa");
-                    else show_message("Error de descompresion");
+                    if (res == COMPRESSION_OK) {
+                        stats_finalize(&state->last_stats);
+                        show_message("Descompresion exitosa");
+                    } else {
+                        show_message("Error de descompresion");
+                    }
                 }
                 break;
             }
@@ -179,12 +188,19 @@ int tui_run(AppState *state)
 
 void tui_show_stats(const AppState *state)
 {
+    const StatsReport *stats = &state->last_stats;
+
     clear();
     mvprintw(2, 2, "STATS:");
-    mvprintw(4, 4, "Bytes clasico: %zu", state->last_stats.bytes_written_classic);
-    mvprintw(5, 4, "Bytes propuesto: %zu", state->last_stats.bytes_written_proposed);
-    mvprintw(7, 4, "Tiempo total: %.2f ms", state->last_stats.wall_time_ms);
-    mvprintw(9, 2, "Presione una tecla...");
+    mvprintw(4, 4, "Bytes originales: %" PRIu64, stats->bytes_original);
+    mvprintw(5, 4, "Bytes comprimidos: %" PRIu64, stats->bytes_compressed);
+    mvprintw(6, 4, "Bytes escritos: %" PRIu64, stats->bytes_written);
+    mvprintw(7, 4, "Llamadas write(): %" PRIu64, stats->write_calls);
+    mvprintw(9, 4, "CPU usuario: %.2f ms", stats->cpu_user_ms);
+    mvprintw(10, 4, "CPU sistema: %.2f ms", stats->cpu_sys_ms);
+    mvprintw(11, 4, "Tiempo total: %.2f ms", stats->wall_clock_ms);
+    mvprintw(12, 4, "Ratio compresion: %.4f", stats->compression_ratio);
+    mvprintw(14, 2, "Presione una tecla...");
     refresh();
     getch();
 }

@@ -8,6 +8,18 @@
 #define LINE_MAX_LEN     1024
 #define SESSION_BUF_INIT 4096
 
+static char *editor_strdup(const char *text)
+{
+    if (!text) return NULL;
+
+    size_t len = strlen(text) + 1;
+    char *copy = malloc(len);
+    if (!copy) return NULL;
+
+    memcpy(copy, text, len);
+    return copy;
+}
+
 /* ══════════════════════════════════════════════════════════
    Funciones originales del editor en memoria
    ══════════════════════════════════════════════════════════ */
@@ -135,7 +147,7 @@ static void hist_add(const char *line)
         g_hist.entries = tmp;
         g_hist.cap     = nc;
     }
-    g_hist.entries[g_hist.count] = strdup(line);
+    g_hist.entries[g_hist.count] = editor_strdup(line);
     if (!g_hist.entries[g_hist.count]) return;
     g_hist.count++;
     g_hist.pos = g_hist.count;
@@ -232,7 +244,7 @@ static char *read_one_line(const char *prompt)
         }
     }
 
-    return strdup(buf);
+    return editor_strdup(buf);
 }
 
 #  else  /* non-unix, no raw mode */
@@ -248,7 +260,7 @@ static char *read_one_line(const char *prompt)
     if (!fgets(buf, sizeof(buf), stdin)) return NULL;
     size_t l = strlen(buf);
     if (l && buf[l - 1] == '\n') buf[l - 1] = '\0';
-    return strdup(buf);
+    return editor_strdup(buf);
 }
 
 #  endif /* __unix__ */
