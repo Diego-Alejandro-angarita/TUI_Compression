@@ -5,8 +5,46 @@
 #include "compression.h"
 #include <inttypes.h>
 #include <ncurses.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#define DATA_DIR "data/"
+#define DATA_DIR_LEN 5
+
+static int build_data_path(const char *name, char *out, size_t out_size)
+{
+    const char *safe_name = name;
+    int written;
+
+    if (!name || !*name || !out || out_size == 0) {
+        return 0;
+    }
+
+    if (strncmp(name, DATA_DIR, DATA_DIR_LEN) == 0) {
+        safe_name = name + DATA_DIR_LEN;
+    }
+
+    if (!*safe_name || strstr(safe_name, "..") ||
+        strchr(safe_name, '/') || strchr(safe_name, '\\')) {
+        return 0;
+    }
+
+    written = snprintf(out, out_size, "%s%s", DATA_DIR, safe_name);
+    return written >= 0 && (size_t)written < out_size;
+}
+
+static int append_suffix(const char *path, const char *suffix, char *out, size_t out_size)
+{
+    int written;
+
+    if (!path || !suffix || !out || out_size == 0) {
+        return 0;
+    }
+
+    written = snprintf(out, out_size, "%s%s", path, suffix);
+    return written >= 0 && (size_t)written < out_size;
+}
 
 static void draw_menu(void)
 {
@@ -113,14 +151,21 @@ int tui_run(AppState *state)
             }
 
             case KEY_F(4): {
-                prompt_input("Archivo a comprimir: ", filepath, sizeof(filepath) - 1);
+                prompt_input("Archivo a comprimir (en data/): ", filepath, sizeof(filepath) - 1);
                 if (strlen(filepath) > 0) {
 
-                    char outpath[300];
-                    snprintf(outpath, sizeof(outpath), "%s.zst", filepath);
+                    char input_path[512];
+                    char outpath[512];
 
+                    if (!build_data_path(filepath, input_path, sizeof(input_path)) ||
+                        !append_suffix(input_path, ".zst", outpath, sizeof(outpath))) {
+                        show_message("Nombre de archivo invalido");
+                        break;
+                    }
+
+                    stats_report_init(&state->last_stats);
                     CompressionResult res =
-                        compression_compress_file(filepath, outpath, &state->last_stats);
+                        compression_compress_file(input_path, outpath, &state->last_stats);
 
                     if (res == COMPRESSION_OK) {
                         stats_finalize(&state->last_stats);
@@ -133,14 +178,21 @@ int tui_run(AppState *state)
             }
 
             case KEY_F(5): {
-                prompt_input("Archivo a descomprimir: ", filepath, sizeof(filepath) - 1);
+                prompt_input("Archivo a descomprimir (en data/): ", filepath, sizeof(filepath) - 1);
                 if (strlen(filepath) > 0) {
 
-                    char outpath[300];
-                    snprintf(outpath, sizeof(outpath), "%s.out", filepath);
+                    char input_path[512];
+                    char outpath[512];
 
+                    if (!build_data_path(filepath, input_path, sizeof(input_path)) ||
+                        !append_suffix(input_path, ".out", outpath, sizeof(outpath))) {
+                        show_message("Nombre de archivo invalido");
+                        break;
+                    }
+
+                    stats_report_init(&state->last_stats);
                     CompressionResult res =
-                        compression_decompress_file(filepath, outpath, &state->last_stats);
+                        compression_decompress_file(input_path, outpath, &state->last_stats);
 
                     if (res == COMPRESSION_OK) {
                         stats_finalize(&state->last_stats);
