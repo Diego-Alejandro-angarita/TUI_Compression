@@ -11,6 +11,7 @@
 
 #define DATA_DIR "data/"
 #define DATA_DIR_LEN 5
+#define EDITOR_FIRST_ROW 2
 
 static int build_data_path(const char *name, char *out, size_t out_size)
 {
@@ -76,6 +77,76 @@ static void prompt_input(const char *prompt, char *buffer, int max_len)
     clrtoeol();
 }
 
+static int editor_visible_rows(void)
+{
+    int rows = LINES - EDITOR_FIRST_ROW - 1;
+    return rows > 0 ? rows : 1;
+}
+
+static void editor_cursor_position(const TextEditor *editor, size_t *line, size_t *col)
+{
+    size_t cursor_line = 0;
+    size_t cursor_col = 0;
+
+    if (editor && editor->buffer) {
+        size_t limit = editor->cursor < editor->length ? editor->cursor : editor->length;
+
+        for (size_t i = 0; i < limit; i++) {
+            if (editor->buffer[i] == '\n') {
+                cursor_line++;
+                cursor_col = 0;
+            } else {
+                cursor_col++;
+            }
+        }
+    }
+
+    *line = cursor_line;
+    *col = cursor_col;
+}
+
+static void keep_cursor_visible(size_t cursor_line, int visible_rows, size_t *scroll_top_line)
+{
+    if (cursor_line < *scroll_top_line) {
+        *scroll_top_line = cursor_line;
+    } else if (cursor_line >= *scroll_top_line + (size_t)visible_rows) {
+        *scroll_top_line = cursor_line - (size_t)visible_rows + 1;
+    }
+}
+
+static void draw_editor_buffer(const TextEditor *editor, size_t scroll_top_line, int visible_rows)
+{
+    const char *buffer = editor && editor->buffer ? editor->buffer : "";
+    size_t pos = 0;
+    size_t current_line = 0;
+
+    while (current_line < scroll_top_line && buffer[pos] != '\0') {
+        if (buffer[pos++] == '\n') {
+            current_line++;
+        }
+    }
+
+    for (int screen_line = 0; screen_line < visible_rows; screen_line++) {
+        int row = EDITOR_FIRST_ROW + screen_line;
+        int col = 0;
+
+        move(row, 0);
+        clrtoeol();
+
+        while (buffer[pos] != '\0' && buffer[pos] != '\n') {
+            if (col < COLS) {
+                mvaddch(row, col, (unsigned char)buffer[pos]);
+            }
+            col++;
+            pos++;
+        }
+
+        if (buffer[pos] == '\n') {
+            pos++;
+        }
+    }
+}
+
 int tui_run(AppState *state)
 {
     initscr();
@@ -91,26 +162,24 @@ int tui_run(AppState *state)
         editor_load_text(&editor, state->text_buffer);
 
     int running = 1;
+    size_t scroll_top_line = 0;
     char filepath[256] = {0};
 
     while (running) {
+        int visible_rows = editor_visible_rows();
+        size_t cursor_line = 0;
+        size_t cursor_col = 0;
+
+        editor_cursor_position(&editor, &cursor_line, &cursor_col);
+        keep_cursor_visible(cursor_line, visible_rows, &scroll_top_line);
+
         clear();
         draw_menu();
 
-        mvprintw(2, 0, "%s", editor.buffer ? editor.buffer : "");
+        draw_editor_buffer(&editor, scroll_top_line, visible_rows);
 
-        int row = 2, col = 0;
-        for (size_t i = 0; i < editor.cursor && editor.buffer; i++) {
-            if (editor.buffer[i] == '\n') {
-                row++;
-                col = 0;
-            } else {
-                col++;
-            }
-        }
-
-        if (row >= LINES - 2) row = LINES - 2;
-        if (col >= COLS - 1) col = COLS - 1;
+        int row = EDITOR_FIRST_ROW + (int)(cursor_line - scroll_top_line);
+        int col = cursor_col < (size_t)(COLS - 1) ? (int)cursor_col : COLS - 1;
 
         move(row, col);
         refresh();
