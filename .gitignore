@@ -1,0 +1,12 @@
+build/
+*.o
+*.a
+*.so
+*.out
+*.log
+*.zst
+*.tmp
+vgcore.*
+.codex
+Dev_guide.md
+AGENTS.md
