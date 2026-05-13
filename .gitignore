@@ -1,11 +1,13 @@
 # Build
 build/
+bin/
 *.o
 *.out
 
 # Binarios
 tui
 zstd_tui
+editor_secure_stub
 
 # Datos generados
 data/

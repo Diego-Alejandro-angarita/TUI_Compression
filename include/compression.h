@@ -1,25 +1,29 @@
 #ifndef COMPRESSION_H
 #define COMPRESSION_H
 
-#include "stats.h"
+#include "buffer.h"
 
 typedef enum {
     COMPRESSION_OK = 0,
-    COMPRESSION_ERR_INPUT,
-    COMPRESSION_ERR_OUTPUT,
-    COMPRESSION_ERR_ZSTD
+    COMPRESSION_ERR_INPUT = -1,
+    COMPRESSION_ERR_NOT_IMPLEMENTED = -2
 } CompressionResult;
 
-CompressionResult compression_compress_file(
-    const char  *input_path,
-    const char  *output_path,
-    StatsReport *stats
+typedef enum {
+    COMPRESSION_NONE = 0,
+    COMPRESSION_ZSTD = 1
+} CompressionAlgorithm;
+
+CompressionResult compress_buffer(
+    const Buffer *plain,
+    Buffer *compressed,
+    CompressionAlgorithm algorithm
 );
 
-CompressionResult compression_decompress_file(
-    const char  *input_path,
-    const char  *output_path,
-    StatsReport *stats
+CompressionResult decompress_buffer(
+    const Buffer *compressed,
+    Buffer *plain,
+    CompressionAlgorithm algorithm
 );
 
 #endif /* COMPRESSION_H */

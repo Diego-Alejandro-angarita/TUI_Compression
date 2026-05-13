@@ -1,15 +1,14 @@
-#include "app_state.h"
-#include "tui.h"
+#include "io_pipeline.h"
+
+#include <stdio.h>
 
 int main(void)
 {
-    AppState state;
-    int result;
+    if (io_pipeline_demo() != IO_PIPELINE_OK) {
+        fprintf(stderr, "Failed to initialize secure compression pipeline structure.\n");
+        return 1;
+    }
 
-    app_state_init(&state);
-    result = tui_run(&state);
-    app_state_destroy(&state);
-
-    return result;
+    printf("Secure compression pipeline structure initialized successfully.\n");
+    return 0;
 }
-
